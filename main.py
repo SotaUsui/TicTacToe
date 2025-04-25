@@ -1,5 +1,6 @@
 import pygame
 import sys
+from socket import *
 
 pygame.init()
 screen = pygame.display.set_mode((300, 300))
@@ -9,7 +10,6 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
 board = [["" for _ in range(3)] for _ in range(3)]
-
 
 def draw_board():
     screen.fill(WHITE)
@@ -24,25 +24,68 @@ def draw_board():
                 mark = font.render(board[i][j], True, BLACK)
                 screen.blit(mark, (j * 100 + 30, i * 100 + 10))
 
+def getLocalIPAddress():
+    s = socket(AF_INET, SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
+
+
+
 
 # Game setup
 CREATING_GAME = True
 PLAYER = "X"
+running = False
+current_turn = "X"
+
 if len(sys.argv) == 3:
-    IP = sys.argv[1]
-    PORT = sys.argv[2]
+    ip = sys.argv[1]
+    port = int(sys.argv[2])
     CREATING_GAME = False
     PLAYER = "O"
-elif len(sys.argv) != 1:
-    print("Invalid")
+
+    # join to the game
+    try:
+        clientSock = socket(AF_INET, SOCK_STREAM)
+        clientSock.connect((ip, port))
+        connection = clientSock
+        running = True
+    except Exception as e:
+        print(f"{e}")
+        sys.exit(1)
+
+elif len(sys.argv) == 1:
+    # Waiting for opponent
+    # open listening socket
+    try:
+        listener = socket(AF_INET, SOCK_STREAM)
+        listener.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        listener.bind(('', 0))
+        listener.listen(1)  # listening only one person
+        listenPort = listener.getsockname()[1]
+        ipaddress = getLocalIPAddress()
+        print("IPAddress - " + str(ipaddress))
+        print("Port - " + str(listenPort))
+
+        connection, addr = listener.accept()
+        listener.close()
+        running = True
+
+    except Exception as e:
+        print(f"{e}")
+        sys.exit(1)
+
+else:
+    print("Invalid Usage.")
     sys.exit(1)
+
 
 
 ##########################################################
 #################### game running ########################
 ##########################################################
-running = True
-current = "X"
+
+
 while running:
     draw_board()
     pygame.display.flip()
